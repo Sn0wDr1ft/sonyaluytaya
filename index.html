@@ -32,7 +32,7 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             background-color: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
@@ -74,61 +74,94 @@
             border-radius: 3px;
         }
         
-        .photo-container {
+        .upload-area {
             width: 100%;
-            max-width: 500px;
-            height: 350px;
+            min-height: 200px;
             margin: 0 auto 25px;
-            border: 5px solid #e83e8c;
+            border: 3px dashed #e83e8c;
             border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-            background-color: #f8f8f8;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+            background-color: #f8f8f8;
+            transition: all 0.3s;
+            padding: 20px;
+            cursor: pointer;
         }
         
-        #photo {
+        .upload-area:hover, .upload-area.drag-over {
+            background-color: #fff0f5;
+            border-color: #9c6bff;
+            transform: scale(1.01);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #e83e8c;
+        }
+        
+        .upload-text {
+            color: #777;
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #aaa;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .gallery-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 1;
+        }
+        
+        .gallery-img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
+            transition: transform 0.3s;
         }
         
-        .placeholder {
-            color: #aaa;
-            font-size: 1.1rem;
+        .gallery-item:hover .gallery-img {
+            transform: scale(1.05);
         }
         
-        .upload-btn {
-            background: linear-gradient(135deg, #e83e8c, #9c6bff);
-            color: white;
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 255, 255, 0.8);
             border: none;
-            padding: 14px 30px;
-            border-radius: 50px;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
             cursor: pointer;
-            font-size: 1.1rem;
             font-weight: bold;
-            transition: all 0.3s;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(232, 62, 140, 0.3);
-        }
-        
-        .upload-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(232, 62, 140, 0.4);
-        }
-        
-        .upload-btn:active {
-            transform: translateY(1px);
+            color: #e83e8c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .message {
             line-height: 1.7;
             font-size: 1.15rem;
-            margin-bottom: 25px;
+            margin: 25px 0;
             text-align: left;
             padding: 0 15px;
             background: linear-gradient(135deg, #fff6f9, #f7f5ff);
@@ -171,10 +204,8 @@
         
         @media (max-width: 600px) {
             h1 { font-size: 2.2rem; }
-            .photo-container { 
-                height: 280px;
-                max-width: 90%;
-            }
+            .upload-area { min-height: 150px; }
+            .gallery { grid-template-columns: repeat(2, 1fr); }
             .message { font-size: 1rem; }
         }
     </style>
@@ -183,13 +214,15 @@
     <div class="container">
         <h1>С Днем Рождения, любимая!</h1>
         
-        <div class="photo-container">
-            <img id="photo" alt="Ваше фото">
-            <div class="placeholder">Загрузите ваше фото</div>
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📸</div>
+            <p class="upload-text">Перетащите сюда фото или кликните для выбора</p>
+            <p class="upload-hint">Можно выбрать несколько фото</p>
         </div>
         
-        <input type="file" id="uploader" accept="image/*" style="display: none;">
-        <button class="upload-btn" onclick="document.getElementById('uploader').click()">Загрузить фото</button>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+        
+        <div class="gallery" id="gallery"></div>
         
         <div class="message">
             <p>Дорогая, в этот особенный день я хочу сказать тебе самые теплые слова!</p>
@@ -204,19 +237,80 @@
     </div>
 
     <script>
-        document.getElementById('uploader').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const img = document.getElementById('photo');
-                    img.src = event.target.result;
-                    img.style.display = 'block';
-                    document.querySelector('.placeholder').style.display = 'none';
-                }
-                reader.readAsDataURL(file);
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const gallery = document.getElementById('gallery');
+        
+        // Обработка клика по области загрузки
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Обработка выбора файлов
+        fileInput.addEventListener('change', handleFiles);
+        
+        // Обработка перетаскивания файлов
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFiles();
             }
         });
+        
+        // Функция обработки файлов
+        function handleFiles() {
+            if (!fileInput.files.length) return;
+            
+            Array.from(fileInput.files).forEach(file => {
+                if (!file.type.match('image.*')) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const galleryItem = document.createElement('div');
+                    galleryItem.className = 'gallery-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'gallery-img';
+                    img.alt = 'Загруженное фото';
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.innerHTML = '×';
+                    deleteBtn.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        galleryItem.remove();
+                    });
+                    
+                    galleryItem.appendChild(img);
+                    galleryItem.appendChild(deleteBtn);
+                    gallery.appendChild(galleryItem);
+                };
+                
+                reader.readAsDataURL(file);
+            });
+            
+            // Скрываем текст, если есть фотографии
+            if (gallery.children.length > 0) {
+                uploadArea.querySelector('.upload-text').textContent = 'Добавить еще фото';
+                uploadArea.querySelector('.upload-hint').textContent = 'Перетащите или кликните';
+            }
+            
+            // Очищаем input, чтобы можно было выбрать те же файлы снова
+            fileInput.value = '';
+        }
         
         // Создаем конфетти
         function createConfetti() {
